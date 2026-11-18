@@ -1,0 +1,32 @@
+# 매시간 시작해서 55분 동안 1분 간격으로 감시(실행이 이어지며 사실상 24시간 감시)
+name: shibuya-sky-watch
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency: watch  # 앞 실행이 끝난 뒤 다음 실행 시작
+
+env:
+  DATE: "2026-12-02"
+  START: "15:20"
+  END: "16:20"
+  PEOPLE: "2"
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: 날짜가 지났으면 종료
+        run: if [[ "$(TZ=Asia/Tokyo date +%F)" > "$DATE" ]]; then echo "감시 날짜 지남"; exit 1; fi
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install playwright && python -m playwright install --with-deps chromium
+      - run: python watch.py "$DATE" "$START" "$END" "$PEOPLE"
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          MAX_MINUTES: "52"
+          PYTHONIOENCODING: utf-8
