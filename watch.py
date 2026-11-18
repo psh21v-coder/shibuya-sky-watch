@@ -15,7 +15,7 @@ from playwright.sync_api import sync_playwright
 
 # 해외 거주자용(영문) 페이지. 15시 전/후 플랜이 한 페이지에 다 있음
 URL = "https://shibuyasky-ticket.triplabo.jp/en/product/prod_agqchhbawn64ljait24jy4xvm4"
-INTERVAL = 60  # 초. 너무 짧게 하면 차단될 수 있음
+INTERVAL = 50  # 초(+확인 시간 약 10초 = 약 1분마다). 너무 짧게 하면 차단될 수 있음
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC")
 DEADLINE = time.time() + float(os.environ.get("MAX_MINUTES", "inf")) * 60
 
@@ -83,4 +83,4 @@ with sync_playwright() as p:
                 for _ in range(10):
                     winsound.Beep(1500, 400)
             break
-        time.sleep(INTERVAL + random.randint(0, 20))
+        time.sleep(INTERVAL + random.randint(0, 5))

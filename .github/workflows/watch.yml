@@ -1,4 +1,4 @@
-# 매시간 시작해서 55분 동안 1분 간격으로 감시(실행이 이어지며 사실상 24시간 감시)
+# 매시간 실행 예약 + 한 번에 70분 감시 → 다음 실행이 바로 이어받아 빈틈 없이 1분마다 감시
 name: shibuya-sky-watch
 on:
   schedule:
@@ -7,7 +7,7 @@ on:
     inputs:
       start: {default: ""}
       end: {default: ""}
-      minutes: {default: "52"}
+      minutes: {default: "70"}
 
 concurrency: watch  # 앞 실행이 끝난 뒤 다음 실행 시작
 
@@ -20,7 +20,7 @@ env:
 jobs:
   watch:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
       - name: 날짜가 지났으면 종료
@@ -32,5 +32,5 @@ jobs:
       - run: python watch.py "$DATE" "$START" "$END" "$PEOPLE"
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          MAX_MINUTES: ${{ inputs.minutes || '52' }}
+          MAX_MINUTES: ${{ inputs.minutes || '70' }}
           PYTHONIOENCODING: utf-8
