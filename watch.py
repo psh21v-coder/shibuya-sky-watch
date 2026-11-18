@@ -77,7 +77,7 @@ with sync_playwright() as p:
             print("FOUND", msg, flush=True)
             if TG_TOKEN and TG_CHAT:
                 urllib.request.urlopen(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
-                    urllib.parse.urlencode({"chat_id": TG_CHAT, "text": f"{msg}\n{URL}"}).encode())
+                    urllib.parse.urlencode({"chat_id": TG_CHAT, "text": f"{msg}\n{URL}\n\n링크 열고 달력 보이면 📖 → sky → Submit → 결제"}).encode())
             if sys.platform == "win32":
                 import winsound
                 for _ in range(10):
