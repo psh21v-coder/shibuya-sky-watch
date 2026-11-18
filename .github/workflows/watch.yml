@@ -29,6 +29,7 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         run: |
+          curl -s "https://api.telegram.org/bot$TELEGRAM_TOKEN/getMe" | python3 -c "import json,sys; print('BOT @' + json.load(sys.stdin)['result']['username'])"
           curl -s "https://api.telegram.org/bot$TELEGRAM_TOKEN/getUpdates" | python3 -c "import json,sys; print('CHAT_IDS', {u['message']['chat']['id'] for u in json.load(sys.stdin)['result'] if 'message' in u})"
           exit 1
       - name: 날짜가 지났으면 종료
