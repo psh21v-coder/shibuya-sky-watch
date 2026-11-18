@@ -8,6 +8,7 @@ on:
       start: {default: ""}
       end: {default: ""}
       minutes: {default: "70"}
+      setup: {default: "", description: "텔레그램 봇에 메시지 보낸 사람의 chat id 확인용"}
 
 concurrency: watch  # 앞 실행이 끝난 뒤 다음 실행 시작
 
@@ -23,6 +24,13 @@ jobs:
     timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
+      - name: 텔레그램 chat id 확인(설정할 때만)
+        if: inputs.setup != ''
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+        run: |
+          curl -s "https://api.telegram.org/bot$TELEGRAM_TOKEN/getUpdates" | python3 -c "import json,sys; print('CHAT_IDS', {u['message']['chat']['id'] for u in json.load(sys.stdin)['result'] if 'message' in u})"
+          exit 1
       - name: 날짜가 지났으면 종료
         run: if [[ "$(TZ=Asia/Tokyo date +%F)" > "$DATE" ]]; then echo "감시 날짜 지남"; exit 1; fi
       - uses: actions/setup-python@v5
@@ -31,6 +39,7 @@ jobs:
       - run: pip install playwright && python -m playwright install --with-deps chromium
       - run: python watch.py "$DATE" "$START" "$END" "$PEOPLE"
         env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           MAX_MINUTES: ${{ inputs.minutes || '70' }}
           PYTHONIOENCODING: utf-8

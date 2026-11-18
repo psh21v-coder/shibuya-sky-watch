@@ -7,16 +7,17 @@
          → 12/2 입장 15:20~16:20 사이에 시작하는 시간대(15:20, 15:40, 16:00, 16:20)를 감시, 어른 2명
 
 클라우드(GitHub Actions)에서는 환경변수로 동작이 바뀜:
-  NTFY_TOPIC  → 자리가 나면 ntfy 앱으로 휴대폰 푸시 알림
+  TELEGRAM_TOKEN, TELEGRAM_CHAT_ID → 자리가 나면 텔레그램으로 예매 링크 전송
   MAX_MINUTES → 이 시간만큼만 감시하고 종료(다음 실행이 이어받음)
 """
-import os, sys, time, random, urllib.request
+import os, sys, time, random, urllib.parse, urllib.request
 from playwright.sync_api import sync_playwright
 
 # 해외 거주자용(영문) 페이지. 15시 전/후 플랜이 한 페이지에 다 있음
 URL = "https://shibuyasky-ticket.triplabo.jp/en/product/prod_agqchhbawn64ljait24jy4xvm4"
 INTERVAL = 50  # 초(+확인 시간 약 10초 = 약 1분마다). 너무 짧게 하면 차단될 수 있음
-NTFY_TOPIC = os.environ.get("NTFY_TOPIC")
+TG_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+TG_CHAT = os.environ.get("TELEGRAM_CHAT_ID")
 DEADLINE = time.time() + float(os.environ.get("MAX_MINUTES", "inf")) * 60
 
 date, start, end = sys.argv[1:4]
@@ -74,10 +75,9 @@ with sync_playwright() as p:
         if slot:
             msg = f"시부야 스카이 취소표! {date} {slot.inner_text().strip()[:5]} 입장 ({people}명)"
             print("FOUND", msg, flush=True)
-            if NTFY_TOPIC:
-                urllib.request.urlopen(urllib.request.Request(
-                    f"https://ntfy.sh/{NTFY_TOPIC}", data=msg.encode(),
-                    headers={"Click": URL, "Priority": "urgent"}))
+            if TG_TOKEN and TG_CHAT:
+                urllib.request.urlopen(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+                    urllib.parse.urlencode({"chat_id": TG_CHAT, "text": f"{msg}\n{URL}"}).encode())
             if sys.platform == "win32":
                 import winsound
                 for _ in range(10):
