@@ -12,6 +12,10 @@ on:
 
 concurrency: watch  # 앞 실행이 끝난 뒤 다음 실행 시작
 
+permissions:
+  contents: read
+  actions: write  # 스스로 다음 실행을 시작하기 위해 필요
+
 env:
   DATE: "2026-12-02"
   START: ${{ inputs.start || '15:20' }}
@@ -33,6 +37,7 @@ jobs:
           curl -s "https://api.telegram.org/bot$TELEGRAM_TOKEN/getUpdates" | python3 -c "import json,sys; print('CHAT_IDS', {u['message']['chat']['id'] for u in json.load(sys.stdin)['result'] if 'message' in u})"
           exit 1
       - name: 날짜가 지났으면 종료
+        id: datecheck
         run: if [[ "$(TZ=Asia/Tokyo date +%F)" > "$DATE" ]]; then echo "감시 날짜 지남"; exit 1; fi
       - uses: actions/setup-python@v5
         with:
@@ -44,3 +49,9 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           MAX_MINUTES: ${{ inputs.minutes || '70' }}
           PYTHONIOENCODING: utf-8
+      # GitHub 예약 실행은 몇 시간씩 건너뛸 때가 있어서, 끝나면 스스로 다음 실행을 시작
+      - name: 다음 실행 이어서 시작
+        if: always() && inputs.setup == '' && inputs.start == '' && steps.datecheck.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run watch.yml -R "$GITHUB_REPOSITORY"

@@ -30,7 +30,7 @@ def wanted(slot_text):  # "15:20〜15:39" → 시작 시각이 범위 안인가
 
 
 def check(page):
-    """원하는 시간대 중 자리가 있는 첫 번째 칸을 돌려줌(없으면 None)."""
+    """원하는 시간대 중 자리가 있는 칸들의 시작 시각 목록을 돌려줌."""
     page.goto(URL)
     page.wait_for_selector('[role="grid"] [title]', timeout=30000)
     if not page.locator(f'[title="{date}"]').count():
@@ -38,7 +38,7 @@ def check(page):
     cell = page.locator(f'[title="{date}"]')
     if not cell.count() or "disabledCell" in (cell.get_attribute("class") or ""):
         print(time.strftime("%H:%M:%S"), date, "아직 판매 전이거나 날짜 전체 매진")
-        return None
+        return []
     cell.click()
     confirm = page.get_by_role("button", name="Confirm")
     if confirm.is_visible(timeout=3000):
@@ -46,7 +46,7 @@ def check(page):
     page.get_by_text(plan, exact=False).last.click()
     page.wait_for_timeout(1500)
     slots = page.locator('[class*="_timeSlot_"]')
-    hit, report = None, []
+    hits, report = [], []
     for i in range(slots.count()):
         s = slots.nth(i)
         text = s.inner_text().strip()
@@ -55,10 +55,10 @@ def check(page):
         cls = s.get_attribute("class") or ""
         state = "×" if "Disabled" in cls else "△" if "Limited" in cls else "○"
         report.append(f"{text[:5]} {state}")
-        if state != "×" and not hit:
-            hit = s
+        if state != "×":
+            hits.append(text[:5])
     print(time.strftime("%H:%M:%S"), date, " / ".join(report) or "해당 시간대 없음")
-    return hit
+    return hits
 
 
 with sync_playwright() as p:
@@ -66,21 +66,24 @@ with sync_playwright() as p:
     # 윈도우는 설치된 엣지, 클라우드(리눅스)는 Playwright 크로미움
     channel = "msedge" if sys.platform == "win32" else None
     page = p.chromium.launch(channel=channel, headless=True).new_page()
+    notified = set()  # 이미 알린 시간대(같은 자리로 1분마다 알림 가지 않게)
     while time.time() < DEADLINE:
         try:
-            slot = check(page)
+            hits = check(page)
         except Exception as e:  # 페이지 늦게 뜸 등 → 다음 회차에 재시도
             print("확인 실패, 다시 시도:", str(e).splitlines()[0])
-            slot = None
-        if slot:
-            msg = f"시부야 스카이 취소표! {date} {slot.inner_text().strip()[:5]} 입장 ({people}명)"
+            hits = []
+        new = [t for t in hits if t not in notified]
+        notified = set(hits)  # 다시 매진됐다 풀리면 또 알림
+        if new:
+            msg = f"시부야 스카이 취소표! {date} {', '.join(new)} 입장 ({people}명)"
             print("FOUND", msg, flush=True)
             if TG_TOKEN and TG_CHAT:
                 urllib.request.urlopen(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
-                    urllib.parse.urlencode({"chat_id": TG_CHAT, "text": f"{msg}\n{URL}\n\n링크 열고 달력 보이면 📖 → sky → Submit → 결제"}).encode())
-            if sys.platform == "win32":
+                    urllib.parse.urlencode({"chat_id": TG_CHAT, "text": f"{msg}\n{URL}\n\n링크 열고 달력 보이면 📖 → sky → sky2 → Payment"}).encode())
+            if sys.platform == "win32":  # 컴퓨터에서는 소리 내고 종료
                 import winsound
                 for _ in range(10):
                     winsound.Beep(1500, 400)
-            break
+                break
         time.sleep(INTERVAL + random.randint(0, 5))
